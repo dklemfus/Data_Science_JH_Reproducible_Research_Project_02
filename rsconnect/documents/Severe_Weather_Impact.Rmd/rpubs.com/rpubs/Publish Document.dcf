@@ -1,0 +1,10 @@
+name: Publish Document
+title:
+username:
+account: rpubs
+server: rpubs.com
+hostUrl: rpubs.com
+appId: https://api.rpubs.com/api/v1/document/697177/c3291c5ec55c44a49f95e5a64f3fc795
+bundleId: https://api.rpubs.com/api/v1/document/697177/c3291c5ec55c44a49f95e5a64f3fc795
+url: http://rpubs.com/dklem/697177
+when: 1606622567.26701

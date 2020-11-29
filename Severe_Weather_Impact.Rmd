@@ -39,14 +39,14 @@ while the 'PROPDMG' and 'CROPDMG' relate to the property and crop damage dollar
 values (respectively). With the latter, there are additional fields 'PROPDMGEXP'
 and 'CROPDMGEXP' which have a scaling value. The exploratory analysis revealed 
 that there are several values such as '+','-', and '0-8' which relate to 
-approximations. To contrast, the standard values are 'K, M, B' which correspond 
-to thousands, millions, and billions of dollars in damages. While performing the
+approximations. To contrast, the standard values are 'H, K, M, B' which correspond 
+to hundreds, thousands, millions, and billions of dollars in damages. While performing the
 exploratory analysis, there were only 309 of 245031 records that contained values
-not attributable to the 'K,M,B' format. These 309 records were omitted from the 
+not attributable to the 'H,K,M,B' format. These 309 records were omitted from the 
 analysis. 
 
-To begin the data exploration/cleaning, first define the required packages and 
-load the data: 
+To perform data exploration/cleaning, define the required packages, load the data, 
+and clean it:
 
 ```{r load_data, warning=F, message=F}
 library(dplyr) # Used for data analysis/manipulation
@@ -112,7 +112,7 @@ d <- transform(pop_data, EVTYPE=reorder(EVTYPE, -Total)) # Reorder data (high-lo
 
 g1 <- ggplot(data=d, aes(EVTYPE, Total)) + 
   geom_bar(stat="identity") +
-  theme(axis.text.x = element_text(angle=90,hjust=1)) +
+  theme(axis.text.x = element_text(angle=45,hjust=1)) +
   xlab("Event Type") + 
   ylab("Population Impact (Death + Injuries)") +
   geom_text(aes(label=Total), vjust=-0.5, size=3)
@@ -137,7 +137,7 @@ d2 <- transform(damage_data, EVTYPE=reorder(EVTYPE, -Total)) # Reorder data (hig
 
 g2 <- ggplot(data=d2, aes(EVTYPE, Total)) + 
   geom_bar(stat="identity") +
-  theme(axis.text.x = element_text(angle=90,hjust=1)) + 
+  theme(axis.text.x = element_text(angle=45,hjust=1)) + 
   scale_y_continuous(labels=scales::comma) +
   xlab("Event Type") +
   ylab("Total Damage ($)") +
@@ -161,7 +161,6 @@ compare in terms of the impact.
 Flood damage causes the most economic impact, followed by Hurricanes/Typhoons, 
 Tornadoes, Storm Surges and Hail. 
 
+
 *All data/scripts used for analysis can be found at: https://github.com/dklemfus/Data_Science_JH_Reproducible_Research_Project_02*
-
-
 
