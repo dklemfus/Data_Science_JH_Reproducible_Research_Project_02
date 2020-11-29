@@ -1,0 +1,167 @@
+---
+title: "Population/Economic Impact of Severe Weather using NOAA data"
+author: "Dan Klemfuss"
+date: "11/28/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Abstract
+
+This project analyzes Storm and Severe Weather data using the U.S. National
+Oceanic and Atmospheric Administration (NOAA) database, to determine the impacts
+on population health and economics. Population health is defined as the aggregate
+of deaths/injuries by event type, while economic impact is defined as the aggregate
+of property and crop damage (in U.S. Dollars). The source data requires a fair 
+amount of cleaning prior to analysis, which is described below. The top twenty 
+events are analyzed in each of the two categories, to show the major contributors. 
+Documentation of the data set is provided in the 'documentation' folder (from 
+NOAA Website), and the raw data is accessible in the 'data' folder, with GitHub
+link at the end of this document. This is the primary markdown document, which 
+includes the R-code used to make the analysis reproducible. 
+
+## Data Processing
+
+*Note: The full exploratory analysis and notes can be found in exploratory_analysis.R*
+
+The provided data set covers storm/severe weather events from 1950 through 
+November 2011. In the earlier years of the database, there are generally fewer
+events recorded due to a lack of 'good' records. This analysis uses the aggregate
+of event impacts, so the lack of reporting is not anticipated to be a significant
+factor. 
+
+The primary fields used in the database can be categorized into the two areas of 
+interest. The 'INJURIES' and 'FATALITIES' fields relate to the population health, 
+while the 'PROPDMG' and 'CROPDMG' relate to the property and crop damage dollar
+values (respectively). With the latter, there are additional fields 'PROPDMGEXP'
+and 'CROPDMGEXP' which have a scaling value. The exploratory analysis revealed 
+that there are several values such as '+','-', and '0-8' which relate to 
+approximations. To contrast, the standard values are 'K, M, B' which correspond 
+to thousands, millions, and billions of dollars in damages. While performing the
+exploratory analysis, there were only 309 of 245031 records that contained values
+not attributable to the 'K,M,B' format. These 309 records were omitted from the 
+analysis. 
+
+To begin the data exploration/cleaning, first define the required packages and 
+load the data: 
+
+```{r load_data, warning=F, message=F}
+library(dplyr) # Used for data analysis/manipulation
+library(data.table) # Used for intermediate data handling
+library(R.utils) # Needed to ensure other packages work
+library(ggplot2) # Used for figures/plots
+library(scales) # Used for formatting figures 
+
+# Load Provided Data in bz2 (compressed) format (this may take a few moments): 
+raw.data <- fread('./data/repdata_data_StormData.csv.bz2')
+
+# Subset the data for population health impact, by selecting only values where
+# the deaths/injuries are greater than zero: 
+
+pop.impact.data <- raw.data %>% filter(FATALITIES > 0 | INJURIES > 0) # 21929 obs
+
+# Define total impact as sum of injuries and fatalities: 
+pop.impact.data <- pop.impact.data %>% mutate(
+  total_population_impact = FATALITIES + INJURIES
+)
+
+# Subset the data for economic impact, by selecting only values where the 
+# property or crop damage is greater than zero: 
+econ.impact.data <- raw.data %>% filter(PROPDMG >0 | CROPDMG >0) # 245031 obs
+econ.impact.data2 <- econ.impact.data[grepl('H|K|M|B', toupper(econ.impact.data$PROPDMGEXP)) |
+                                       grepl('H|K|M|B', toupper(econ.impact.data$CROPDMGEXP)),]
+# Reduces data from 245031 to 244722 (diff of 309 instances)
+
+# Transform the data to a standard dollar amount: 
+econ.impact.data2 <- econ.impact.data2 %>% mutate(
+  prop_dmg_impact = case_when(toupper(PROPDMGEXP)=="H" ~ PROPDMG*100,
+                              toupper(PROPDMGEXP)=="K" ~ PROPDMG*1000,
+                              toupper(PROPDMGEXP)=="M" ~ PROPDMG*1000000,
+                              toupper(PROPDMGEXP)=="B" ~ PROPDMG*1000000000,
+                              TRUE ~ 0),
+  crop_dmg_impact = case_when(toupper(CROPDMGEXP)=="H" ~ CROPDMG*100,
+                              toupper(CROPDMGEXP)=="K" ~ CROPDMG*1000,
+                              toupper(CROPDMGEXP)=="M" ~ CROPDMG*1000000,
+                              toupper(CROPDMGEXP)=="B" ~ CROPDMG*1000000000,
+                              TRUE ~ 0),
+  total_dmg_impact = prop_dmg_impact + crop_dmg_impact
+)
+```
+## Results
+
+After cleaning the data, the next step is analyzing and visualizing the top severe
+weather events that cause population health and economic impacts. The strategy 
+used for this report was to aggregate and view the top 20 events. 
+
+### Population Health Impact
+
+The population health impact is defined as the sum of the injuries and deaths 
+caused by each type of environmental event. The chart below shows the values for 
+the top twenty events: 
+
+```{r pop_health, warning=F, message=F, fig.align='center', fig.cap='Figure 1: Population Health Impact by Event Type'}
+# Aggregate by total injuries/deaths by category: 
+pop_data <- pop.impact.data %>% group_by(EVTYPE) %>%
+  summarize(Total = sum(total_population_impact)) %>% arrange(desc(Total)) %>%
+  slice(1:20) # Include top 20 EVTYPES
+
+d <- transform(pop_data, EVTYPE=reorder(EVTYPE, -Total)) # Reorder data (high-low)
+
+g1 <- ggplot(data=d, aes(EVTYPE, Total)) + 
+  geom_bar(stat="identity") +
+  theme(axis.text.x = element_text(angle=90,hjust=1)) +
+  xlab("Event Type") + 
+  ylab("Population Impact (Death + Injuries)") +
+  geom_text(aes(label=Total), vjust=-0.5, size=3)
+
+# Render Plot: 
+g1
+
+```
+
+### Ecomonic Impact
+
+The economic impact is defined as the sum of the property and crop damage caused 
+by each type of environemental event (in U.S. Dollars). The chart below shows the
+values for the top twenty events: 
+
+```{r econ_health, warning=F, message=F, fig.align='center', fig.cap='Figure 2: Economic Impact by Event Type'}
+damage_data <- econ.impact.data2 %>% group_by(EVTYPE) %>%
+  summarize(Total = sum(total_dmg_impact)) %>% arrange(desc(Total)) %>%
+   slice(1:20) # Include top 20 EVTYPES
+
+d2 <- transform(damage_data, EVTYPE=reorder(EVTYPE, -Total)) # Reorder data (high-low)
+
+g2 <- ggplot(data=d2, aes(EVTYPE, Total)) + 
+  geom_bar(stat="identity") +
+  theme(axis.text.x = element_text(angle=90,hjust=1)) + 
+  scale_y_continuous(labels=scales::comma) +
+  xlab("Event Type") +
+  ylab("Total Damage ($)") +
+  geom_text(aes(label=paste0(round(Total/1000000000,0),"B")), vjust=-0.5, size=3)
+
+# Render Plot:
+g2
+
+```
+
+## Conclusion
+
+Based on the provided data, the following conclusions can be drawn: 
+
+#### 1. Population Health Impact
+Tornadoes are the primary cause of injuries/deaths by a large margin. Excessive
+heat, Thunderstorm Wind, Flood, and Lightning (the next highest events) do not 
+compare in terms of the impact.
+
+#### 2. Economic Impact
+Flood damage causes the most economic impact, followed by Hurricanes/Typhoons, 
+Tornadoes, Storm Surges and Hail. 
+
+*All data/scripts used for analysis can be found at: https://github.com/dklemfus/Data_Science_JH_Reproducible_Research_Project_02*
+
+
+
